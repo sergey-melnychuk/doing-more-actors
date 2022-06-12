@@ -122,7 +122,6 @@ impl<T: Tag, A: Actor<T = T, M = M>, M: Message> System<T, A, M> {
 
 fn handle_actions<T: Tag, A: Actor<T = T, M = M>, M: Message>(sys: &mut System<T, A, M>) {
     while let Ok(action) = sys.rx.recv_timeout(Duration::from_millis(0)) {
-        println!("action: {:?}", action);
         match action {
             Action::Bind(tag, actor) => {
                 sys.actors.insert(tag, actor);
@@ -190,6 +189,7 @@ fn action_loop<T: Tag, A: Actor<T = T, M = M>, M: Message, F: Fn() -> u32>(
     loop {
         sys.millis = clock();
         ctx.now = sys.millis;
+
         handle_actions(sys);
         handle_posts(sys, &mut ctx);
         handle_actors(sys, &mut ctx);
