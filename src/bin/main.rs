@@ -46,7 +46,7 @@ fn main() {
     let mut sys = System::default();
 
     let mut ctx = sys.context();
-    ctx.bind("tag".to_owned(), State::Empty);
+    ctx.bind("tag".to_string(), State::Empty);
     ctx.send(&"tag".to_string(), Protocol::Empty);
 
     sys.run();
