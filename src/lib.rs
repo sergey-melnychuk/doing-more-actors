@@ -1,16 +1,18 @@
 use std::{
     collections::{BinaryHeap, HashMap, VecDeque},
+    fmt::Debug,
+    hash::Hash,
     sync::mpsc::{channel, Receiver, Sender},
     time::{Duration, SystemTime},
 };
 
-pub trait Message: Sized + std::fmt::Debug + Clone + 'static {}
+pub trait Message: Sized + Debug + Clone + 'static {}
 
-pub trait Tag: Sized + Eq + std::hash::Hash + std::fmt::Debug + Clone + 'static {}
+pub trait Tag: Sized + Eq + Hash + Debug + Clone + 'static {}
 
 impl Tag for String {}
 
-pub trait Actor: Sized + std::fmt::Debug {
+pub trait Actor: Sized + Debug {
     type T: Tag;
     type M: Message;
     fn act(&mut self, tag: &Self::T, ctx: &mut Context<Self::T, Self, Self::M>, msg: Self::M);
