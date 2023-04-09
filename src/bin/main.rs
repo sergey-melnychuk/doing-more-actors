@@ -35,7 +35,7 @@ impl Actor for State {
                 println!("time: {}", ctx.now() - *time);
                 *time = ctx.now();
                 *n += 1;
-                ctx.post(tag, msg, 100);
+                ctx.post(tag.clone(), msg, 100);
             }
             State::Done => ctx.stop(tag),
         }

@@ -32,7 +32,7 @@ pub enum Action<T: Tag, A: Actor, M: Message> {
 }
 
 impl<T: Tag, A: Actor, M: Message> Context<T, A, M> {
-    pub fn with_sender(tx: Sender<Action<T, A, M>>) -> Self {
+    fn new(tx: Sender<Action<T, A, M>>) -> Self {
         Self { tx, now: 0 }
     }
 }
@@ -50,10 +50,8 @@ impl<T: Tag, A: Actor, M: Message> Context<T, A, M> {
         self.tx.send(Action::Bind(tag, actor)).unwrap();
     }
 
-    pub fn post(&mut self, tag: &T, msg: M, millis: u32) {
-        self.tx
-            .send(Action::Post(tag.clone(), msg, millis))
-            .unwrap();
+    pub fn post(&mut self, tag: T, msg: M, millis: u32) {
+        self.tx.send(Action::Post(tag, msg, millis)).unwrap();
     }
 
     pub fn now(&self) -> u32 {
@@ -99,7 +97,7 @@ impl<T: Tag, A: Actor, M: Message> Default for System<T, A, M> {
             actors: Default::default(),
             queues: Default::default(),
             posted: Default::default(),
-            millis: Default::default(),
+            millis: 0,
             tx,
             rx,
         }
@@ -108,18 +106,19 @@ impl<T: Tag, A: Actor, M: Message> Default for System<T, A, M> {
 
 impl<T: Tag, A: Actor<T = T, M = M>, M: Message> System<T, A, M> {
     pub fn context(&self) -> Context<T, A, M> {
-        Context::with_sender(self.tx.clone())
+        Context::new(self.tx.clone())
     }
 
     pub fn run(&mut self) {
-        let clock = || {
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as u32
-        };
-        action_loop(self, clock);
+        action_loop(self, get_current_millis);
     }
+}
+
+fn get_current_millis() -> u32 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u32
 }
 
 fn handle_actions<T: Tag, A: Actor<T = T, M = M>, M: Message>(sys: &mut System<T, A, M>) {
