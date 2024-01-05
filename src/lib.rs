@@ -12,6 +12,8 @@ pub trait Tag: Sized + Eq + Hash + Debug + Clone + 'static {}
 
 impl Tag for String {}
 
+pub type Millis = u64;
+
 pub trait Actor: Sized + Debug {
     type T: Tag;
     type M: Message;
@@ -20,14 +22,14 @@ pub trait Actor: Sized + Debug {
 
 pub struct Context<T: Tag, A: Actor, M: Message> {
     tx: Sender<Action<T, A, M>>,
-    now: u32,
+    now: Millis,
 }
 
 #[derive(Debug)]
 pub enum Action<T: Tag, A: Actor, M: Message> {
     Bind(T, A),
     Send(T, M),
-    Post(T, M, u32),
+    Post(T, M, Millis),
     Stop(T),
 }
 
@@ -50,16 +52,16 @@ impl<T: Tag, A: Actor, M: Message> Context<T, A, M> {
         self.tx.send(Action::Bind(tag, actor)).unwrap();
     }
 
-    pub fn post(&mut self, tag: T, msg: M, millis: u32) {
+    pub fn post(&mut self, tag: T, msg: M, millis: Millis) {
         self.tx.send(Action::Post(tag, msg, millis)).unwrap();
     }
 
-    pub fn now(&self) -> u32 {
+    pub fn now(&self) -> Millis {
         self.now
     }
 }
 
-struct Post<T: Tag, M: Message>(u32, T, M);
+struct Post<T: Tag, M: Message>(Millis, T, M);
 
 impl<T: Tag, M: Message> PartialEq for Post<T, M> {
     fn eq(&self, other: &Self) -> bool {
@@ -71,13 +73,13 @@ impl<T: Tag, M: Message> Eq for Post<T, M> {}
 
 impl<T: Tag, M: Message> PartialOrd for Post<T, M> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
+        Some(self.cmp(other))
     }
 }
 
 impl<T: Tag, M: Message> Ord for Post<T, M> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        other.0.partial_cmp(&self.0).unwrap()
+        self.0.cmp(&other.0)
     }
 }
 
@@ -85,7 +87,7 @@ pub struct System<T: Tag, A: Actor, M: Message> {
     actors: HashMap<T, A>,
     queues: HashMap<T, VecDeque<M>>,
     posted: BinaryHeap<Post<T, M>>,
-    millis: u32,
+    millis: Millis,
     tx: Sender<Action<T, A, M>>,
     rx: Receiver<Action<T, A, M>>,
 }
@@ -114,11 +116,11 @@ impl<T: Tag, A: Actor<T = T, M = M>, M: Message> System<T, A, M> {
     }
 }
 
-fn get_current_millis() -> u32 {
+fn get_current_millis() -> Millis {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
-        .as_millis() as u32
+        .as_millis() as Millis
 }
 
 fn handle_actions<T: Tag, A: Actor<T = T, M = M>, M: Message>(sys: &mut System<T, A, M>) {
@@ -154,7 +156,7 @@ fn handle_posts<T: Tag, A: Actor<T = T, M = M>, M: Message>(
         .peek()
         .map(|Post(deadline, _, _)| deadline)
         .cloned()
-        .unwrap_or(u32::MAX)
+        .unwrap_or(Millis::MAX)
         <= sys.millis
     {
         if let Some(Post(_, tag, msg)) = sys.posted.pop() {
@@ -182,7 +184,7 @@ fn handle_actors<T: Tag, A: Actor<T = T, M = M>, M: Message>(
         });
 }
 
-fn action_loop<T: Tag, A: Actor<T = T, M = M>, M: Message, F: Fn() -> u32>(
+fn action_loop<T: Tag, A: Actor<T = T, M = M>, M: Message, F: Fn() -> Millis>(
     sys: &mut System<T, A, M>,
     clock: F,
 ) {

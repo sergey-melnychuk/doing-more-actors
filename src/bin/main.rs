@@ -1,4 +1,4 @@
-use doing_more_actors::{Actor, Context, Message, System};
+use doing_more_actors::{Actor, Context, Message, Millis, System};
 
 #[derive(Debug, Clone)]
 enum Protocol {
@@ -10,7 +10,7 @@ impl Message for Protocol {}
 #[derive(Debug)]
 enum State {
     Empty,
-    Counter(usize, u32),
+    Counter(usize, Millis),
     Done,
 }
 
@@ -44,10 +44,9 @@ impl Actor for State {
 
 fn main() {
     let mut sys = System::default();
-
     let mut ctx = sys.context();
-    ctx.bind("tag".to_string(), State::Empty);
-    ctx.send(&"tag".to_string(), Protocol::Empty);
-
+    let tag = "tag".to_string();
+    ctx.bind(tag.clone(), State::Empty);
+    ctx.send(&tag, Protocol::Empty);
     sys.run();
 }
